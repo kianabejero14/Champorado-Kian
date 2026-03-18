@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SAP User Accounts — Flying V</title>
+<link rel="icon" type="image/jpg" href="logo1.jpg">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg:       #0b0d12;
+  --surf:     #111318;
+  --surf2:    #181b23;
+  --surf3:    #1e2230;
+  --border:   rgba(255,255,255,0.07);
+  --gold:     #e8c97e;
+  --gold-dim: rgba(232,201,126,0.12);
+  --blue:     #5b8dee;
+  --blue-dim: rgba(91,141,238,0.12);
+  --teal:     #4ecdc4;
+  --teal-dim: rgba(78,205,196,0.12);
+  --red:      #e05c6e;
+  --red-dim:  rgba(224,92,110,0.12);
+  --muted:    #656b7e;
+  --text:     #edecea;
+  --radius:   16px;
+  --sb-w:     240px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* noise */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+/* orbs */
+.orb { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
+.orb-a { width: 600px; height: 600px; background: rgba(232,201,126,0.055); top: -150px; right: -150px; }
+.orb-b { width: 450px; height: 450px; background: rgba(91,141,238,0.055); bottom: -80px; left: -100px; }
+
+/* ══ LOGIN MODAL ══ */
+.modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+.modal-container {
+  display: flex; width: 740px; max-width: 96vw;
+  border-radius: 24px; overflow: hidden;
+  background: var(--surf); border: 1px solid var(--border);
+  box-shadow: 0 50px 120px rgba(0,0,0,0.7);
+  animation: popIn .5s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes popIn {
+  from { opacity:0; transform: scale(.9) translateY(24px); }
+  to   { opacity:1; transform: scale(1) translateY(0); }
+}
+.modal-left {
+  flex: 1.35; padding: 52px 44px;
+  display: flex; flex-direction: column; justify-content: center;
+  position: relative;
+}
+.modal-eyebrow {
+  position: absolute; top: 24px; left: 44px;
+  font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 500;
+  letter-spacing: 4px; text-transform: uppercase; color: var(--gold);
+}
+.modal-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 34px; font-weight: 500; line-height: 1.1;
+  color: var(--text); margin-bottom: 8px;
+}
+.modal-sub { font-size: 14px; color: var(--muted); margin-bottom: 38px; }
+.inp-label {
+  display: block; font-size: 10px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px;
+}
+.inp-wrap { margin-bottom: 20px; }
+.inp-wrap input {
+  width: 100%; padding: 12px 16px;
+  background: var(--surf2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text);
+  font-size: 14px; font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.inp-wrap input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(232,201,126,.13); }
+.login-btn {
+  width: 100%; padding: 13px; border: none; border-radius: 10px;
+  background: var(--gold); color: #0b0d12;
+  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: .5px;
+  cursor: pointer; margin-top: 6px; transition: transform .15s, box-shadow .2s;
+}
+.login-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(232,201,126,.3); }
+.modal-right { flex: 1.3; overflow: hidden; position: relative; }
+.modal-right img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.75) saturate(.85); }
+.modal-right::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(232,201,126,.1), transparent 60%);
+}
+
+/* ══ LOGIN POPUP ══ */
+#loginPopup {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  padding: 20px 36px;
+  font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
+  border-radius: 14px; display: none; z-index: 99999; color: #fff; text-align: center;
+}
+#loginPopup.success { background: #22c55e; box-shadow: 0 8px 40px rgba(34,197,94,.45); }
+#loginPopup.error   { background: var(--red); box-shadow: 0 8px 40px rgba(224,92,110,.45); }
+
+/* ══ MAIN SHELL ══ */
+#mainContent { display: none; position: relative; z-index: 1; height: 100vh; overflow: hidden; }
+
+/* topbar */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; height: 56px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(11,13,18,.9); backdrop-filter: blur(14px);
+  position: relative; z-index: 100;
+}
+.topbar-brand { display: flex; align-items: baseline; gap: 12px; }
+.topbar-brand h1 {
+  font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 500; color: var(--gold);
+}
+.topbar-brand span {
+  font-size: 11px; color: var(--muted); letter-spacing: 1px; font-weight: 500; text-transform: uppercase;
+}
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.topbar-pill {
+  padding: 7px 15px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surf); color: var(--muted);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all .2s; font-family: 'DM Sans', sans-serif;
+  display: flex; align-items: center; gap: 7px;
+}
+.topbar-pill:hover { border-color: var(--gold); color: var(--gold); }
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), #c8a850);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; color: #0b0d12;
+}
+
+/* ══ APP LAYOUT: sidebar left + content right ══ */
+.app-body {
+  display: flex;
+  height: calc(100vh - 56px);
+}
+
+/* ── LEFT SIDEBAR (nav only) ── */
+.sidebar {
+  width: var(--sb-w);
+  flex-shrink: 0;
+  padding: 22px 14px;
+  background: var(--surf);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 4px;
+  overflow-y: auto;
+}
+.sb-label {
+  font-family: 'Syne', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--muted); padding: 2px 10px 12px;
+}
+.sb-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 11px 14px; border: 1px solid transparent; border-radius: 10px;
+  background: transparent; color: var(--muted);
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; text-align: left; transition: all .2s;
+}
+.sb-btn i { width: 15px; text-align: center; font-size: 12px; }
+.sb-btn:hover  { background: var(--surf2); color: var(--text); border-color: var(--border); }
+.sb-btn.active { background: var(--gold-dim); color: var(--gold); border-color: rgba(232,201,126,.2); }
+.sb-divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+/* ── CONTENT AREA ── */
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 36px;
+}
+.content-area::-webkit-scrollbar { width: 4px; }
+.content-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* panels — only one visible at a time */
+.panel { display: none; animation: fadeUp .3s ease both; }
+.panel.active { display: block; }
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(12px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+/* ── SECTION EYEBROW ── */
+.section-eyebrow {
+  font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+}
+.panel-title {
+  font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 500;
+  color: var(--text); margin-bottom: 28px;
+}
+.panel-title-row {
+  display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px;
+}
+.close-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surf); color: var(--muted);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all .2s; font-family: 'DM Sans', sans-serif;
+}
+.close-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* ── STAT CARDS ── */
+.stat-row {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 28px;
+}
+.stat-card {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 20px;
+  cursor: pointer; position: relative; overflow: hidden;
+  transition: transform .25s, border-color .25s, box-shadow .25s;
+}
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: var(--c-accent);
+}
+.stat-card:hover { transform: translateY(-3px); border-color: var(--c-accent); box-shadow: 0 16px 48px rgba(0,0,0,.35); }
+.stat-card.c-gold { --c-accent: var(--gold); }
+.stat-card.c-blue { --c-accent: var(--blue); }
+.stat-card.c-teal { --c-accent: var(--teal); }
+.stat-card.c-red  { --c-accent: var(--red);  }
+.stat-ico {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; margin-bottom: 16px;
+  background: var(--c-dim); color: var(--c-accent);
+}
+.c-gold .stat-ico { --c-dim: var(--gold-dim); }
+.c-blue .stat-ico { --c-dim: var(--blue-dim); }
+.c-teal .stat-ico { --c-dim: var(--teal-dim); }
+.c-red  .stat-ico { --c-dim: var(--red-dim);  }
+.stat-num {
+  font-family: 'Syne', sans-serif; font-size: 38px; font-weight: 500;
+  line-height: 1; color: var(--c-accent); margin-bottom: 5px;
+}
+.stat-lbl { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+/* charts */
+.chart-row { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
+.chart-card {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px;
+}
+.chart-ttl {
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 20px;
+}
+
+/* ── ADD USER FORM ── */
+.form-card {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px; max-width: 700px;
+}
+.form-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;
+}
+.ff label {
+  display: block; font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px;
+}
+.ff input, .ff select {
+  width: 100%; padding: 10px 14px;
+  background: var(--surf2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 13px; font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color .2s;
+}
+.ff input:focus, .ff select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(232,201,126,.1); }
+.ff input::placeholder { color: var(--muted); }
+.ff select option { background: #181b23; }
+.form-btns-row {
+  display: flex; gap: 10px; align-items: center;
+  padding-top: 20px; border-top: 1px solid var(--border);
+}
+.fbtn {
+  padding: 10px 20px; border: none; border-radius: 8px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; transition: opacity .2s, transform .15s;
+  display: flex; align-items: center; gap: 7px;
+}
+.fbtn:hover { opacity: .82; transform: translateY(-1px); }
+.fb-save   { background: var(--blue); color: #fff; }
+.fb-cancel { background: var(--surf3); color: var(--muted); border: 1px solid var(--border); }
+.fb-del    { background: var(--red-dim); color: var(--red); border: 1px solid rgba(224,92,110,.2); margin-left: auto; }
+
+/* ── TABLE ── */
+.tbl-wrap-outer {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.filter-row { display: flex; gap: 10px; margin-bottom: 16px; }
+.filter-row select, .filter-row input {
+  flex: 1; padding: 9px 14px; min-width: 0;
+  background: var(--surf2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 20px; font-family: 'DM Sans', sans-serif; outline: none;
+}
+.filter-row select:focus, .filter-row input:focus { border-color: var(--gold); }
+.filter-row select option { background: #181b23; }
+.filter-row input::placeholder { color: var(--muted); }
+
+.tbl-scroll { max-height: calc(100vh - 320px); overflow-y: auto; border-radius: 8px; }
+.tbl-scroll::-webkit-scrollbar { width: 3px; }
+.tbl-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 18px; }
+thead { position: sticky; top: 0; z-index: 2; }
+thead th {
+  background: var(--surf2); color: var(--muted);
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 10px 12px; text-align: left;
+}
+thead th:first-child { border-radius: 8px 0 0 8px; }
+thead th:last-child  { border-radius: 0 8px 8px 0; }
+tbody tr { border-bottom: 1px solid rgba(255,255,255,.04); transition: background .12s; }
+tbody tr:hover { background: rgba(255,255,255,.025); }
+tbody td { padding: 10px 12px; color: var(--text); }
+
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: .5px; }
+.b-pro { background: var(--blue-dim); color: var(--blue); }
+.b-fin { background: var(--gold-dim); color: var(--gold); }
+.b-log { background: var(--teal-dim); color: var(--teal); }
+.b-uni { background: rgba(101,107,126,.12); color: var(--muted); }
+
+.edit-btn {
+  padding: 5px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: all .15s; font-family: 'DM Sans', sans-serif;
+}
+.edit-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 28px; right: 28px;
+  min-width: 240px; padding: 13px 18px;
+  border-radius: 12px; font-size: 13px; font-weight: 600; color: #fff;
+  opacity: 0; transform: translateY(14px);
+  animation: toastIn .35s forwards; z-index: 99999;
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'DM Sans', sans-serif;
+}
+.toast.success { background: #22c55e; box-shadow: 0 8px 30px rgba(34,197,94,.3); }
+.toast.info    { background: var(--blue); box-shadow: 0 8px 30px rgba(91,141,238,.3); }
+.toast.error   { background: var(--red);  box-shadow: 0 8px 30px rgba(224,92,110,.3); }
+@keyframes toastIn  { to { opacity:1; transform: translateY(0); } }
+@keyframes toastOut { to { opacity:0; transform: translateY(14px); } }
+
+/* ── PASSWORD FIELD TOGGLE ── */
+.pass-field-wrap {
+  position: relative; display: flex; align-items: center;
+}
+.pass-field-wrap input {
+  padding-right: 42px;
+}
+.pass-toggle {
+  position: absolute; right: 10px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--muted); font-size: 14px; padding: 4px;
+  transition: color .2s; line-height: 1;
+}
+.pass-toggle:hover { color: var(--gold); }
+</style>
+</head>
+<body>
+
+<div class="orb orb-a"></div>
+<div class="orb orb-b"></div>
+
+<!-- ══ LOGIN MODAL ══ -->
+<div class="modal" id="loginModal">
+  <div class="modal-container">
+    <div class="modal-left">
+      <div class="modal-eyebrow">Flying V · TWA Inc.</div>
+      <h1 class="modal-title">Accounts &amp;<br>Users</h1>
+      <p class="modal-sub">Welcome back, Sir Ki 👋</p>
+      <div class="inp-wrap">
+        <label class="inp-label">Username</label>
+        <input type="text" id="loginUsername" placeholder="Enter username">
+      </div>
+      <div class="inp-wrap">
+        <label class="inp-label">Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter password" oninput="typingPassword()">
+      </div>
+      <button class="login-btn" onclick="login()">Sign In →</button>
+    </div>
+    <div class="modal-right">
+      <img id="loginImage" src="finalkian.jpg" alt="Login">
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN ══ -->
+<div id="mainContent">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <h1>Flying V</h1>
+      <span>TWA Inc. · SAP User Management</span>
+    </div>
+    <div class="topbar-right">
+      <button class="topbar-pill" onclick="showChangePassword()">
+        <i class="fa-solid fa-key"></i> Change Password
+      </button>
+      <div class="avatar">Ki</div>
+    </div>
+  </div>
+
+  <!-- APP BODY -->
+  <div class="app-body">
+
+    <!-- LEFT SIDEBAR — nav only -->
+    <div class="sidebar">
+      <div class="sb-label">Navigation</div>
+
+      <button class="sb-btn active" id="navDashboard" onclick="showPanel('dashboard', this)">
+        <i class="fa-solid fa-chart-pie"></i> Dashboard
+      </button>
+      <button class="sb-btn" id="navAddUser" onclick="showPanel('adduser', this)">
+        <i class="fa-solid fa-user-plus"></i> Add New User
+      </button>
+      <button class="sb-btn" id="navAccounts" onclick="showPanel('accounts', this)">
+        <i class="fa-solid fa-table-list"></i> List of Accounts
+      </button>
+    </div>
+
+    <!-- CONTENT AREA — panels swap here -->
+    <div class="content-area">
+
+      <!-- PANEL: DASHBOARD -->
+      <div id="panelDashboard" class="panel active">
+        <p class="section-eyebrow">Overview</p>
+        <div class="panel-title">Dashboard</div>
+
+        <div class="stat-row">
+          <div class="stat-card c-gold" onclick="showPanel('accounts', document.getElementById('navAccounts'))">
+            <div class="stat-ico"><i class="fa-solid fa-building"></i></div>
+            <div class="stat-num" id="totalAccounts">0</div>
+            <div class="stat-lbl">Total Accounts</div>
+          </div>
+          <div class="stat-card c-blue" onclick="showPanel('accounts', document.getElementById('navAccounts'))">
+            <div class="stat-ico"><i class="fa-solid fa-users"></i></div>
+            <div class="stat-num" id="totalUsers">0</div>
+            <div class="stat-lbl">Total Users</div>
+          </div>
+          <div class="stat-card c-teal">
+            <div class="stat-ico"><i class="fa-solid fa-id-badge"></i></div>
+            <div class="stat-num" id="totalLicensed">0</div>
+            <div class="stat-lbl">Licensed Users</div>
+          </div>
+          <div class="stat-card c-red">
+            <div class="stat-ico"><i class="fa-solid fa-circle-question"></i></div>
+            <div class="stat-num" id="totalUnidentified">0</div>
+            <div class="stat-lbl">Unidentified</div>
+          </div>
+        </div>
+
+        <div class="chart-row">
+          <div class="chart-card">
+            <div class="chart-ttl">Users per Department</div>
+            <canvas id="deptChart" height="190"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-ttl">Users per License</div>
+            <canvas id="licenseChart" height="190"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL: ADD / EDIT USER -->
+      <div id="panelAddUser" class="panel">
+        <p class="section-eyebrow">User Management</p>
+        <div class="panel-title-row">
+          <div class="panel-title" id="formPanelTitle" style="margin-bottom:0">Add New User</div>
+          <button class="close-btn" onclick="showPanel('dashboard', document.getElementById('navDashboard'))">
+            <i class="fa fa-xmark"></i> Back to Dashboard
+          </button>
+        </div>
+
+        <div class="form-card">
+          <form id="userForm" onsubmit="saveUser();return false;">
+            <input type="hidden" id="editIndex">
+            <div class="form-grid">
+              <div class="ff"><label>Username</label><input id="username" required placeholder="Enter username"></div>
+              <div class="ff"><label>Account</label><input id="account" required placeholder="Enter account name"></div>
+              <div class="ff">
+                <label>Password</label>
+                <div class="pass-field-wrap">
+                  <input type="password" id="password" required placeholder="••••••••">
+                  <button type="button" class="pass-toggle" onclick="togglePassVisibility()" id="passToggleBtn">
+                    <i class="fa fa-eye" id="passToggleIcon"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="ff">
+                <label>License</label>
+                <select id="license">
+                  <option>Unidentified</option>
+                  <option>Professional</option>
+                  <option>Financial</option>
+                  <option>Logistics</option>
+                </select>
+              </div>
+              <div class="ff">
+                <label>Department</label>
+                <select id="department">
+                  <option>Unidentified</option>
+                  <option>MIS</option>
+                  <option>Accounting</option>
+                  <option>Credit and Collection</option>
+                  <option>Treasury</option>
+                  <option>BPSM</option>
+                  <option>Purchasing</option>
+                  <option>ADP</option>
+                  <option>Fleet Services</option>
+                  <option>Marketing Services</option>
+                  <option>Quadocs</option>
+                  <option>Customer Service</option>
+                </select>
+              </div>
+              <div class="ff">
+                <label>Server</label>
+                <select id="server">
+                  <option>Unidentified</option>
+                  <option>10.0.1.7</option>
+                  <option>10.0.1.6</option>
+                  <option>10.0.1.45</option>
+                  <option>10.0.1.46</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-btns-row">
+              <button type="submit" class="fbtn fb-save"><i class="fa fa-floppy-disk"></i> Save User</button>
+              <button type="button" class="fbtn fb-cancel" onclick="clearForm()">
+                <i class="fa fa-rotate-left"></i> Clear
+              </button>
+              <button type="button" class="fbtn fb-del" onclick="deleteCurrentUser()">
+                <i class="fa fa-trash"></i> Delete User
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- PANEL: LIST OF ACCOUNTS -->
+      <div id="panelAccounts" class="panel">
+        <p class="section-eyebrow">User Management</p>
+        <div class="panel-title-row">
+          <div class="panel-title" style="margin-bottom:0">List of Accounts</div>
+          <button class="close-btn" onclick="showPanel('dashboard', document.getElementById('navDashboard'))">
+            <i class="fa fa-xmark"></i> Back to Dashboard
+          </button>
+        </div>
+
+        <div class="tbl-wrap-outer">
+          <div class="filter-row">
+            <select id="filterDept" onchange="renderTable()">
+              <option value="">All Departments</option>
+              <option>Unidentified</option>
+              <option>MIS</option>
+              <option>Accounting</option>
+              <option>Credit and Collection</option>
+              <option>Treasury</option>
+              <option>BPSM</option>
+              <option>Purchasing</option>
+              <option>ADP</option>
+              <option>Fleet Services</option>
+              <option>Marketing Services</option>
+              <option>Quadocs</option>
+              <option>Customer Service</option>
+            </select>
+            <input id="filterName" placeholder="Search by name or account..." oninput="renderTable()">
+          </div>
+          <div class="tbl-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Username</th>
+                  <th>Account</th>
+				  <th>Password</th>
+                  <th>License</th>
+                  <th>Department</th>
+                  <th>Server</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="userTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content-area -->
+  </div><!-- /app-body -->
+</div><!-- /mainContent -->
+
+<div id="loginPopup"></div>
+
+<script>
+// ── ELEMENT REFS ──
+const account    = document.getElementById("account");
+const username   = document.getElementById("username");
+const password   = document.getElementById("password");
+const license    = document.getElementById("license");
+const department = document.getElementById("department");
+const server     = document.getElementById("server");
+const editIndex  = document.getElementById("editIndex");
+const userForm   = document.getElementById("userForm");
+const userTable  = document.getElementById("userTable");
+
+const totalAccountsEl     = document.getElementById("totalAccounts");
+const totalUsersEl        = document.getElementById("totalUsers");
+const totalLicensedEl     = document.getElementById("totalLicensed");
+const totalUnidentifiedEl = document.getElementById("totalUnidentified");
+
+let managerPassword = localStorage.getItem("managerPassword") || "b1admin";
+let users = JSON.parse(localStorage.getItem("sapUsers")) || [];
+let deptChart, licenseChart;
+
+// ── PANEL NAVIGATION ──
+function showPanel(name, btn) {
+  // hide all panels
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  // deactivate all nav btns
+  document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
+
+  // show target panel
+  const panelMap = { dashboard: 'panelDashboard', adduser: 'panelAddUser', accounts: 'panelAccounts' };
+  const target = document.getElementById(panelMap[name]);
+  if (target) target.classList.add('active');
+
+  // activate nav btn
+  if (btn) btn.classList.add('active');
+
+  // side effects
+  if (name === 'accounts') renderTable();
+  if (name === 'adduser') {
+    // reset to "add" mode if not editing
+    if (!editIndex.value) {
+      document.getElementById('formPanelTitle').textContent = 'Add New User';
+      userForm.reset();
+    }
+  }
+}
+
+// legacy wrappers so old filterBy still works
+function showForm(btn) { showPanel('adduser', document.getElementById('navAddUser')); }
+function showAccounts(btn) { showPanel('accounts', document.getElementById('navAccounts')); }
+function hideForm() {
+  clearForm();
+  showPanel('dashboard', document.getElementById('navDashboard'));
+}
+function hideAccounts() { showPanel('dashboard', document.getElementById('navDashboard')); }
+
+function filterBy(type) {
+  document.getElementById("filterDept").value = "";
+  document.getElementById("filterName").value = "";
+  showPanel('accounts', document.getElementById('navAccounts'));
+}
+
+function clearForm() {
+  userForm.reset();
+  editIndex.value = "";
+  document.getElementById('formPanelTitle').textContent = 'Add New User';
+}
+
+// ── TOAST ──
+function showToast(msg, type = "success") {
+  const t = document.createElement("div");
+  t.className = `toast ${type}`;
+  t.innerHTML = `<i class="fa fa-${type==='success'?'check-circle':type==='error'?'circle-xmark':'circle-info'}"></i>${msg}`;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = "toastOut 0.4s forwards";
+    setTimeout(() => t.remove(), 400);
+  }, 2500);
+}
+
+// ── DASHBOARD ──
+function renderCharts() {
+  const dept = {}, lic = {};
+  users.forEach(u => {
+    dept[u.department] = (dept[u.department] || 0) + 1;
+    lic[u.license]     = (lic[u.license]     || 0) + 1;
+  });
+
+  if (deptChart)    deptChart.destroy();
+  if (licenseChart) licenseChart.destroy();
+
+  deptChart = new Chart(document.getElementById("deptChart"), {
+    type: "bar",
+    data: {
+      labels: Object.keys(dept),
+      datasets: [{
+        data: Object.values(dept),
+        backgroundColor: "rgba(91,141,238,0.65)",
+        borderColor: "#5b8dee",
+        borderWidth: 1, borderRadius: 6, barThickness: 18
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { color: '#656b7e', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#656b7e', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      },
+      animation: { duration: 1500, easing: 'easeOutBounce', delay: ctx => ctx.dataIndex * 200 }
+    }
+  });
+
+  licenseChart = new Chart(document.getElementById("licenseChart"), {
+    type: "doughnut",
+    data: {
+      labels: Object.keys(lic),
+      datasets: [{
+        data: Object.values(lic),
+        backgroundColor: ["rgba(101,107,126,.7)","rgba(91,141,238,.7)","rgba(232,201,126,.7)","rgba(78,205,196,.7)"],
+        borderColor: "#111318", borderWidth: 2
+      }]
+    },
+    options: {
+      cutout: '62%',
+      animation: { animateRotate: true, animateScale: true, duration: 1500, easing: 'easeOutBounce' },
+      plugins: {
+        legend: { position: "bottom", labels: { color: '#656b7e', font: { size: 10 }, padding: 12 } },
+        tooltip: { enabled: true }
+      }
+    }
+  });
+}
+
+function renderDashboard() {
+  const totalAcc = [...new Set(users.map(u => u.account))].length;
+  const totalUsr = users.length;
+  const licensed = users.filter(u => u.license !== 'Unidentified').length;
+  const unident  = users.filter(u => u.license === 'Unidentified').length;
+  animateCounter(totalAccountsEl, totalAcc);
+  animateCounter(totalUsersEl, totalUsr);
+  animateCounter(totalLicensedEl, licensed);
+  animateCounter(totalUnidentifiedEl, unident);
+  renderCharts();
+}
+
+function animateCounter(element, value) {
+  let start = 0;
+  const step = Math.ceil(value / 50) || 1;
+  const interval = setInterval(() => {
+    start += step;
+    if (start >= value) { element.innerText = value; clearInterval(interval); }
+    else element.innerText = start;
+  }, 20);
+}
+
+// ── TABLE ──
+function renderTable() {
+  userTable.innerHTML = "";
+  const deptVal   = document.getElementById("filterDept").value;
+  const searchVal = document.getElementById("filterName").value.toLowerCase();
+  const filtered  = users.filter(u =>
+    (deptVal === "" || u.department === deptVal) &&
+    (u.account + " " + u.username).toLowerCase().includes(searchVal)
+  );
+
+  if (filtered.length === 0) {
+    userTable.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px;font-size:13px">No records found</td></tr>`;
+    return;
+  }
+
+  filtered.forEach((u, i) => {
+    const realIdx = users.indexOf(u);
+    const badgeMap = { Professional:'b-pro', Financial:'b-fin', Logistics:'b-log', Unidentified:'b-uni' };
+    const bc = badgeMap[u.license] || 'b-uni';
+    const tr = userTable.insertRow();
+    tr.innerHTML = `
+  <td style="color:var(--muted);font-size:11px">${i+1}</td>
+  <td style="font-weight:600">${u.username}</td>
+  <td style="color:var(--muted)">${u.account}</td>
+  <td id="pwdCell-${realIdx}" data-visible="false">••••••••</td>
+  <td><span class="badge ${bc}">${u.license}</span></td>
+  <td style="color:var(--muted)">${u.department}</td>
+  <td style="color:var(--muted)">${u.server}</td>
+  <td>
+    <button class="edit-btn" onclick="editUser(${realIdx})">Edit</button>
+    <button class="edit-btn" id="pwdBtn-${realIdx}" onclick="togglePasswordView(${realIdx})">
+      <i class="fa fa-eye"></i>
+    </button>
+  </td>`;
+  });
+}
+function togglePasswordView(idx) {
+  const pwdCell = document.getElementById(`pwdCell-${idx}`);
+  const icon    = document.getElementById(`pwdBtn-${idx}`).querySelector("i");
+  
+  if (pwdCell.dataset.visible === "true") {
+    pwdCell.innerText = "••••••••";
+    pwdCell.dataset.visible = "false";
+    icon.classList.remove("fa-eye-slash");
+    icon.classList.add("fa-eye");
+  } else {
+    pwdCell.innerText = users[idx].password;
+    pwdCell.dataset.visible = "true";
+    icon.classList.remove("fa-eye");
+    icon.classList.add("fa-eye-slash");
+  }
+}
+function editUser(i) {
+  const u = users[i];
+  account.value    = u.account;
+  username.value   = u.username;
+  password.value   = u.password;
+  license.value    = u.license;
+  department.value = u.department;
+  server.value     = u.server;
+  editIndex.value  = i;
+  document.getElementById('formPanelTitle').textContent = 'Edit User';
+  showPanel('adduser', document.getElementById('navAddUser'));
+}
+
+function saveUser() {
+  const d = {
+    account:    account.value,    username:   username.value,
+    password:   password.value,   license:    license.value,
+    department: department.value, server:     server.value
+  };
+  if (editIndex.value === "") {
+    users.push(d);
+    showToast("User successfully added ✅", "success");
+  } else {
+    users[editIndex.value] = d;
+    showToast("User successfully updated ✏️", "info");
+  }
+  localStorage.setItem("sapUsers", JSON.stringify(users));
+  clearForm();
+  renderDashboard();
+  renderTable();
+}
+
+function deleteCurrentUser() {
+  if (editIndex.value !== "") {
+    users.splice(editIndex.value, 1);
+    localStorage.setItem("sapUsers", JSON.stringify(users));
+    clearForm();
+    renderDashboard();
+    renderTable();
+    showToast("User deleted 🗑️", "error");
+  } else {
+    showToast("Select a user to delete first", "error");
+  }
+}
+
+// ── LOGIN ──
+const loginImg = document.getElementById("loginImage");
+
+function typingPassword() {
+  loginImg.src = "kaptyping.jpg";
+}
+
+function login() {
+  const popup = document.getElementById("loginPopup");
+  const uVal  = document.getElementById("loginUsername").value;
+  const pVal  = document.getElementById("loginPassword").value;
+
+  if (uVal === "manager" && pVal === managerPassword) {
+    loginImg.src = "kapkian.jpg";
+    popup.innerText = "Welcome sir Ki 😎";
+    popup.className = "success";
+    popup.style.display = "block";
+    setTimeout(() => {
+      document.getElementById("loginModal").style.display = "none";
+      document.getElementById("mainContent").style.display = "block";
+      renderDashboard();
+      popup.style.display = "none";
+    }, 1200);
+  } else {
+    loginImg.src = "kapkian.jpg";
+    popup.innerText = "Tanga mo mag type 😂";
+    popup.className = "error";
+    popup.style.display = "block";
+    setTimeout(() => {
+      popup.style.display = "none";
+      document.getElementById("loginPassword").value = "";
+    }, 2000);
+  }
+}
+
+function showChangePassword() {
+  const p = prompt("New password:", managerPassword);
+  if (p) {
+    managerPassword = p;
+    localStorage.setItem("managerPassword", p);
+    showToast("Password changed!", "success");
+  }
+}
+
+function togglePassVisibility() {
+  const inp = document.getElementById('password');
+  const icon = document.getElementById('passToggleIcon');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    icon.className = 'fa fa-eye-slash';
+  } else {
+    inp.type = 'password';
+    icon.className = 'fa fa-eye';
+  }
+}
+// ── AUTO LOCK AFTER INACTIVITY ──
+let idleTime = 0;
+const idleLimit = 10 * 60; // 15 minutes in seconds
+
+// Reset timer on user interaction
+function resetIdleTimer() { idleTime = 0; }
+['mousemove','keydown','scroll','click'].forEach(evt =>
+  document.addEventListener(evt, resetIdleTimer)
+);
+
+// Increment idle time every second
+setInterval(() => {
+  idleTime++;
+  if (idleTime >= idleLimit) {
+    idleTime = 0;
+    lockScreen();
+  }
+}, 1000);
+
+function lockScreen() {
+  // hide main content
+  document.getElementById("mainContent").style.display = "none";
+  // show login modal
+  document.getElementById("loginModal").style.display = "flex";
+  showToast("Session locked due to inactivity ⏰", "info");
+}
+
+
+</script>
+</body>
+</html>
